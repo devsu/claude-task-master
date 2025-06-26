@@ -12,6 +12,7 @@ import {
 } from '../ui.js';
 
 import { generateTextService } from '../ai-services-unified.js';
+import generateClarifyingQuestions from './generate-clarifying-questions.js';
 
 import { getDebugFlag, getProjectName } from '../config-manager.js';
 import {
@@ -72,6 +73,7 @@ Do not include any explanatory text, markdown formatting, or code block markers 
  * @param {string} options.output - Path to report output file
  * @param {string|number} [options.threshold] - Complexity threshold
  * @param {boolean} [options.research] - Use research role
+ * @param {boolean} [options.clarify] - Generate clarifying questions before analysis
  * @param {string} [options.projectRoot] - Project root path (for MCP/env fallback).
  * @param {string} [options.id] - Comma-separated list of task IDs to analyze specifically
  * @param {number} [options.from] - Starting task ID in a range to analyze
@@ -105,7 +107,7 @@ async function analyzeTaskComplexity(options, context = {}) {
 
 	const reportLog = (message, level = 'info') => {
 		if (mcpLog) {
-			mcpLog[level](message);
+			mcpLoglevel;
 		} else if (!isSilentMode() && outputFormat === 'text') {
 			log(level, message);
 		}
@@ -252,6 +254,48 @@ async function analyzeTaskComplexity(options, context = {}) {
 			}
 		}
 		// --- End Context Gathering ---
+
+		// --- Clarifying Questions Workflow ---
+		if (options.clarify && tasksData.tasks.length > 0) {
+			reportLog('Generating clarifying questions for the tasks under analysis...', 'info');
+			try {
+				const clarifyResult = await generateClarifyingQuestions({ tasksData }, { session, mcpLog });
+
+				if (clarifyResult.success && clarifyResult.data.filePath) {
+					const questionsFilePath = clarifyResult.data.filePath;
+					if (outputFormat === 'text') {
+						console.log(chalk.yellow(`\n📝 A clarifying questions document has been generated at:`));
+						console.log(chalk.cyan(`   ${questionsFilePath}`));
+						console.log(chalk.yellow('\nPlease open this file, answer the questions, and save it.'));
+						console.log(chalk.yellow('Press ENTER to continue the analysis with your answers.'));
+
+						const rl = readline.createInterface({
+							input: process.stdin,
+							output: process.stdout
+						});
+
+						await new Promise(resolve => rl.question('', resolve));
+						rl.close();
+						process.stdout.write('\n'); // Add a newline for cleaner output
+
+						const answeredQuestions = fs.readFileSync(questionsFilePath, 'utf8');
+						gatheredContext += `\n\n# Clarifying Questions & Answers from Developer\n\n${answeredQuestions}`;
+						reportLog('Incorporating developer answers into analysis context.', 'info');
+					} else {
+						// For MCP/JSON output, we can't pause. We can just note that questions were generated.
+						mcpLog.info({
+							message: 'Clarifying questions document generated. Manual intervention required to answer them before re-running analysis.',
+							filePath: questionsFilePath
+						});
+					}
+				} else {
+					reportLog(`Could not generate clarifying questions: ${clarifyResult.error || 'No tasks to clarify.'}`, 'warn');
+				}
+			} catch (clarifyError) {
+				reportLog(`Error during clarifying questions generation: ${clarifyError.message}`, 'error');
+			}
+		}
+		// --- End Clarifying Questions Workflow ---
 
 		const skippedCount = originalTaskCount - tasksData.tasks.length;
 		reportLog(
@@ -524,7 +568,7 @@ async function analyzeTaskComplexity(options, context = {}) {
 							expansionPrompt: `Break down this task with a focus on ${missingTask.title.toLowerCase()}.`,
 							reasoning:
 								'Automatically added due to missing analysis in AI response.',
-							estimatedHours: 1
+							estimateHours: 1
 						});
 					}
 				}

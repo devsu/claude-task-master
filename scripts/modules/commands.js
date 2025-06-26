@@ -1671,6 +1671,9 @@ function registerCommands(programInstance) {
 			'Use Perplexity AI for research-backed complexity analysis'
 		)
 		.option(
+			'--clarify', 'Generate a document with clarifying questions before analysis and incorporate them into the prompt.'
+		)
+		.option(
 			'-i, --id <ids>',
 			'Comma-separated list of specific task IDs to analyze (e.g., "1,3,5")'
 		)
