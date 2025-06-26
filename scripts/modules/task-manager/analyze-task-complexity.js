@@ -34,7 +34,7 @@ function generateInternalComplexityAnalysisPrompt(
 	gatheredContext = ''
 ) {
 	const tasksString = JSON.stringify(tasksData.tasks, null, 2);
-	let prompt = `Analyze the following tasks to determine their complexity (1-10 scale) and recommend the number of subtasks for expansion. Provide a brief reasoning and an initial expansion prompt for each.
+	let prompt = `Analyze the following tasks to determine their complexity (1-10 scale) and recommend the number of subtasks for expansion. Provide a brief reasoning and an initial expansion prompt for each, and estimate development time for each of the resulting tasks and subtasks.
 
 Tasks:
 ${tasksString}`;
@@ -53,10 +53,13 @@ Respond ONLY with a valid JSON array matching the schema:
     "complexityScore": <number 1-10>,
     "recommendedSubtasks": <number>,
     "expansionPrompt": "<string>",
+	"estimateHours": <number>,
     "reasoning": "<string>"
   },
   ...
 ]
+
+For 'estimateHours', provide the estimated time in hours to complete the task, assuming a traditional, non-AI-assisted development cycle by a single mid-to-senior level developer.
 
 Do not include any explanatory text, markdown formatting, or code block markers before or after the JSON array.`;
 	return prompt;
@@ -520,7 +523,8 @@ async function analyzeTaskComplexity(options, context = {}) {
 							recommendedSubtasks: 3,
 							expansionPrompt: `Break down this task with a focus on ${missingTask.title.toLowerCase()}.`,
 							reasoning:
-								'Automatically added due to missing analysis in AI response.'
+								'Automatically added due to missing analysis in AI response.',
+							estimatedHours: 1
 						});
 					}
 				}
