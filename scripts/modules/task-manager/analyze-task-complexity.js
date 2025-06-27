@@ -129,7 +129,7 @@ For each task provided, create an object in the array with the following keys, e
 - "taskId": (number) The ID of the task.
 - "taskTitle": (string) The title of the task.
 - "complexityScore": (number) A score from 1 (trivial) to 10 (highly complex).
-- "estimatedHours": (number) A rough estimate of the time in hours to complete the task.
+- "estimatedHours": (number) A rough estimate of the time in hours to complete the task, assuming a single mid-to-senior level developer will be assigned to each individual task. The estimate should be done assuming no AI-assisted development.
 - "reasoning": (string) A brief explanation for the score.
 - "recommendedSubtasks": (number) A suggested number of subtasks to break it down into.
 - "expansionPrompt": (string) A concise prompt for a separate AI to use to expand this task into subtasks.
