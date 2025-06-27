@@ -161,6 +161,7 @@ EXAMPLE of a PERFECT response for a single task:
 				tasksAnalyzed: newAnalysis.length,
 				totalTasks: tasksToAnalyze.length,
 				analysisCount: (existingReport.meta.analysisCount || 0) + 1,
+				thresholdScore: options.threshold || 5,
 				projectName: getProjectName(),
 				usedResearch: research || false,
 				totalEstimatedHours: totalEstimatedHours,
@@ -177,12 +178,13 @@ EXAMPLE of a PERFECT response for a single task:
 
 		if (spinner) spinner.succeed(chalk.green(`Complexity analysis complete. Report saved to ${path.relative(projectRoot, reportPath)}`));
 
-		if (clarify) {
-			reportLog('Proceeding to generate clarifying questions for complex tasks...', 'info');
-			const complexTasks = tasksToAnalyze.filter(task =>
+		const complexTasks = tasksToAnalyze.filter(task =>
 				newAnalysis.some(analysis => analysis.taskId === task.id && analysis.complexityScore >= (finalReport.meta.thresholdScore || 5))
 			);
 
+		if (clarify) {
+			reportLog('Proceeding to generate clarifying questions for complex tasks...', 'info');
+			if (spinner) spinner.text = 'Generating clarifying questions for complex tasks...';
 			if (complexTasks.length > 0) {
 				await generateClarifyingQuestions({ tasksData: { tasks: complexTasks } }, context);
 			} else {
