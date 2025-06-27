@@ -1728,8 +1728,6 @@ async function displayComplexityReport(reportPath) {
 		return;
 	}
 
-	console.log(report);
-
 	// Display report header
 	console.log(
 		boxen(chalk.white.bold('Task Complexity Analysis Report'), {
@@ -1779,6 +1777,8 @@ async function displayComplexityReport(reportPath) {
             chalk.green('Yes')
         ]);
     }
+
+	console.log(metaTable.toString());x
 
 	// Sort tasks by complexity score (highest first)
 	const sortedTasks = [...report.complexityAnalysis].sort(
