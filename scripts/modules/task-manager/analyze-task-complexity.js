@@ -6,6 +6,7 @@ import { readJSON, writeJSON, log, findProjectRoot, findTasksJsonPath } from '..
 import { generateTextService } from '../ai-services-unified.js';
 import { getProjectName, getDebugFlag } from '../config-manager.js';
 import generateClarifyingQuestions from './generate-clarifying-questions.js';
+import readline from 'readline';
 
 /**
  * Attempts to fix common JSON errors from AI responses.
@@ -37,6 +38,41 @@ function fixMalformedJson(jsonString) {
     cleaned = cleaned.replace(/([{,]\s*)'([^']+)'\s*:/g, '$1"$2":'); // Single-quoted keys
 
     return cleaned;
+}
+
+function waitForUserConfirmation(generatedFilePath) {
+    const rl = readline.createInterface({
+        input: process.stdin,
+        output: process.stdout
+    });
+
+    return new Promise((resolve, reject) => {
+        const question = () => {
+            // Provide clear instructions to the user.
+            console.log(chalk.cyan(`\nA clarifying questions document has been generated at: ${generatedFilePath}`));
+            console.log(chalk.cyan('Please review the document, fill in the answers, and then return here.'));
+            
+            // Ask the question.
+            rl.question(chalk.yellow.bold('Type "continue" to proceed with the analysis using the updated context, or "abort" to cancel: '), (answer) => {
+                const cleanAnswer = answer.trim().toLowerCase();
+                
+                if (cleanAnswer === 'continue') {
+                    rl.close();
+                    resolve(); // Resolve the promise on 'continue'
+                } else if (cleanAnswer === 'abort') {
+                    rl.close();
+                    // Reject the promise with a specific error message for clarity.
+                    reject(new Error('User aborted analysis.'));
+                } else {
+                    // Handle invalid input and ask again.
+                    console.log(chalk.red('\nInvalid input. Please type either "continue" or "abort".'));
+                    question(); 
+                }
+            });
+        };
+        
+        question(); // Initial call to start the prompt.
+    });
 }
 
 async function analyzeTaskComplexity(options, context = {}) {
@@ -185,8 +221,92 @@ EXAMPLE of a PERFECT response for a single task:
 		if (clarify) {
 			reportLog('Proceeding to generate clarifying questions for complex tasks...', 'info');
 			if (spinner) spinner.text = 'Generating clarifying questions for complex tasks...';
+			
 			if (complexTasks.length > 0) {
-				await generateClarifyingQuestions({ tasksData: { tasks: complexTasks } }, context);
+				const clarificationResult = await generateClarifyingQuestions({ tasksData: { tasks: complexTasks } }, context);
+                
+                // If a document was successfully generated, wait for user confirmation.
+                if (clarificationResult.success && clarificationResult.data.filePath) {
+					reportLog(`Clarifying questions document generated at: ${clarificationResult.data.filePath}`, 'info');
+                    // This will pause execution until the user types 'continue' or 'abort'.
+                    // If the user aborts, the promise will reject and the main catch block will execute.
+                    await waitForUserConfirmation(clarificationResult.data.filePath);
+                    
+                    if (spinner) spinner.start('Re-analyzing complexity with updated context...');
+
+					// Re-run the analysis with the updated context after clarifying questions.
+					// Read the updated content from the clarifying questions file
+                    const updatedContext = fs.readFileSync(clarificationResult.data.filePath, 'utf8');
+
+					// Create a new user prompt that includes the updated context
+                    const reanalysisUserPrompt = `The initial tasks to analyze are:\n${JSON.stringify(tasksToAnalyze, null, 2)}\n\nHere are the clarifying questions and the developer's answers. Use this additional context to refine your complexity analysis:\n\n${updatedContext}\n\nNow, re-analyze the original tasks based on this new information and return the refined complexity analysis in the specified JSON format.`;
+
+					if (debug) {
+                        reportLog(`Re-analysis User Prompt:\n${reanalysisUserPrompt}`, 'debug');
+                    }
+
+					// Call the AI service again with the new, richer context
+                    const reanalysisResponse = await generateTextService({
+                        prompt: reanalysisUserPrompt,
+                        systemPrompt: systemPrompt,
+                        role: 'main',
+                        session: session,
+                        projectRoot: projectRoot,
+                        commandName: 'analyze-complexity-rerun',
+                        outputType: outputFormat,
+                        useResearch: research
+                    });
+
+					if (spinner) spinner.text = 'AI re-analysis complete. Parsing response...';
+
+					const cleanedReanalysisJsonString = fixMalformedJson(reanalysisResponse.mainResult);
+
+					let reanalysisResult;
+
+					try {
+                        reanalysisResult = JSON.parse(cleanedReanalysisJsonString);
+                    } catch (parseError) {
+                        reportLog(`Error parsing re-analysis JSON: ${parseError.message}`, 'error');
+                        if (debug) {
+                            reportLog(`Original re-analysis AI response:\n${reanalysisResponse.mainResult}`, 'debug');
+                            reportLog(`Cleaned re-analysis AI response that failed parsing:\n${cleanedReanalysisJsonString}`, 'debug');
+                        }
+                        // Throw the error to be caught by the main try...catch block
+                        // throw new Error(`Error parsing re-analysis JSON: ${parseError.message}`);
+						return { success: false, error: parseError.message };
+                    }
+
+					const refinedAnalysis = reanalysisResult.complexityAnalysis || [];
+                    
+                    const refinedTotalEstimatedHours = refinedAnalysis.reduce((sum, task) => sum + (task.estimatedHours || 0), 0);
+
+					// Overwrite the final report with the refined analysis
+                    const refinedReport = {
+                        meta: {
+                            ...existingReport.meta,
+                            generatedAt: new Date().toISOString(),
+                            tasksAnalyzed: refinedAnalysis.length,
+                            totalTasks: tasksToAnalyze.length,
+                            analysisCount: (existingReport.meta.analysisCount || 0) + 1,
+                            thresholdScore: options.threshold || 5,
+                            projectName: getProjectName(),
+                            usedResearch: research || false,
+                            totalEstimatedHours: refinedTotalEstimatedHours,
+                            clarificationProvided: true, // Add a flag to indicate clarification was used
+                        },
+                        complexityAnalysis: refinedAnalysis
+                    };
+
+					writeJSON(reportPath, refinedReport, projectRoot);
+
+                    if (spinner) spinner.succeed(chalk.green(`Refined complexity analysis complete. Report updated at ${path.relative(projectRoot, reportPath)}`));
+                    
+					return { success: true, data: { reportPath, analysis: refinedAnalysis } };
+                } else {
+					reportLog('Failed to generate clarifying questions document.', 'error');
+					reportLog(`Clarifying questions generation error: ${clarificationResult.error}`, 'error');
+					reportLog('Proceeding with the analysis without clarifying questions.', 'warn');
+				}
 			} else {
 				reportLog('No tasks met the complexity threshold for clarification.', 'info');
 			}

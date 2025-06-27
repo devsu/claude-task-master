@@ -899,8 +899,8 @@ function displayHelp() {
  * @returns {string} Colored complexity score
  */
 function getComplexityWithColor(score) {
-	if (score <= 3) return chalk.green(`● ${score}`);
-	if (score <= 6) return chalk.yellow(`● ${score}`);
+	if (score <= 4) return chalk.green(`● ${score}`);
+	if (score <= 7) return chalk.yellow(`● ${score}`);
 	return chalk.red(`● ${score}`);
 }
 
@@ -1728,6 +1728,8 @@ async function displayComplexityReport(reportPath) {
 		return;
 	}
 
+	console.log(report);
+
 	// Display report header
 	console.log(
 		boxen(chalk.white.bold('Task Complexity Analysis Report'), {
@@ -1770,6 +1772,13 @@ async function displayComplexityReport(reportPath) {
 			report.meta.usedResearch ? 'Yes' : 'No'
 		]
 	);
+
+	if (report.meta.clarificationProvided) {
+        metaTable.push([
+            chalk.cyan.bold('Clarification Used:'),
+            chalk.green('Yes')
+        ]);
+    }
 
 	console.log(metaTable.toString());
 
