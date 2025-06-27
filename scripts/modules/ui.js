@@ -1778,7 +1778,7 @@ async function displayComplexityReport(reportPath) {
         ]);
     }
 
-	console.log(metaTable.toString());x
+	console.log(metaTable.toString());
 
 	// Sort tasks by complexity score (highest first)
 	const sortedTasks = [...report.complexityAnalysis].sort(
