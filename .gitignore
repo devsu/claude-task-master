@@ -27,6 +27,15 @@ coverage/
 # Configuration files
 .taskmaster/config.json
 
+# Reports
+reports/
+
+# Research files
+docs/research/
+
+# Tasks
+tasks/
+
 # Jest cache
 .jest/
 
