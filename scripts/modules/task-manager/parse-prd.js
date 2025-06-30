@@ -181,6 +181,8 @@ async function parsePRD(prdPath, tasksPath, numTasks, options = {}) {
 4. Evaluate alternative implementation approaches and recommend the most efficient path
 5. Include specific library versions, helpful APIs, and concrete implementation guidance based on your research
 6. Always aim to provide the most direct path to implementation, avoiding over-engineering or roundabout approaches
+7. Unless the PRD contains specific requirements for libraries, database schemas, frameworks, tech stacks, or any other implementation details, do not discard them under any circumstance
+8. Unless the PRD specifies otherwise, assume the solution should have a RESTful API, database integration, and a responsive web-based frontend
 
 Your task breakdown should incorporate this research, resulting in more detailed implementation guidance, more accurate dependency mapping, and more precise technology recommendations than would be possible from the PRD text alone, while maintaining all explicit requirements and best practices and all details and nuances of the PRD.`
 			: '';

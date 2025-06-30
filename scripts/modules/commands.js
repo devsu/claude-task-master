@@ -141,6 +141,7 @@ import {
 	categorizeRemovalResults
 } from '../../src/utils/profiles.js';
 import generateClarifyingQuestions from './task-manager/generate-clarifying-questions.js';
+import exportComplexityReport from './task-manager/export-complexity-report.js';
 
 /**
  * Runs the interactive setup process for model configuration.
@@ -2596,6 +2597,25 @@ ${result.result}
 				process.exit(1);
 			}
 		});
+
+	// export-complexity-report command
+	programInstance
+        .command('export-complexity-report')
+        .description('Export the complexity analysis report to a CSV file')
+        .option(
+            '-r, --report <file>',
+            'Path to the source JSON report file (e.g., .taskmaster/reports/task-complexity-report.json)',
+            COMPLEXITY_REPORT_FILE
+        )
+        .option(
+            '-o, --output <file>',
+            'Path for the destination CSV file (e.g., complexity-report.csv)'
+        )
+        .option('--tag <tag>', 'Specify tag context for the report file')
+        .action(async (options) => {
+            log('info', 'Starting complexity report export...');
+            await exportComplexityReport(options);
+        });
 
 	// add-subtask command
 	programInstance
