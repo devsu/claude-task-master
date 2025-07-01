@@ -1,116 +1,91 @@
-/**
- * complexity-report.js
- * Direct function implementation for displaying complexity analysis report
- */
-
-import {
-	readComplexityReport,
-	enableSilentMode,
-	disableSilentMode
-} from '../../../../scripts/modules/utils.js';
+import chalk from 'chalk';
+import Table from 'cli-table3';
+import { readComplexityReport, isSilentMode } from '../../utils.js';
+import { COMPLEXITY_REPORT_FILE } from '../../../src/constants/paths.js';
 
 /**
- * Direct function wrapper for displaying the complexity report with error handling and caching.
- *
- * @param {Object} args - Command arguments containing reportPath.
- * @param {string} args.reportPath - Explicit path to the complexity report file.
- * @param {Object} log - Logger object
- * @returns {Promise<Object>} - Result object with success status and data/error information
+ * Displays the task complexity analysis report in a formatted table.
+ * This is the user-facing command logic.
+ * @param {Object} options - Command options.
+ * @param {string} [options.file] - Path to the report file.
+ * @param {Object} [context] - Context object, for MCP logging.
  */
-export async function complexityReportDirect(args, log) {
-	// Destructure expected args
-	const { reportPath } = args;
+async function complexityReport(options, context = {}) {
+	const { mcpLog } = context;
+	const reportPath = options.file || COMPLEXITY_REPORT_FILE;
+	const outputFormat = mcpLog || isSilentMode() ? 'json' : 'text';
+
 	try {
-		log.info(`Getting complexity report with args: ${JSON.stringify(args)}`);
+		const report = readComplexityReport(reportPath);
 
-		// Check if reportPath was provided
-		if (!reportPath) {
-			log.error('complexityReportDirect called without reportPath');
-			return {
-				success: false,
-				error: { code: 'MISSING_ARGUMENT', message: 'reportPath is required' }
-			};
-		}
-
-		// Use the provided report path
-		log.info(`Looking for complexity report at: ${reportPath}`);
-
-		// Generate cache key based on report path
-		const cacheKey = `complexityReport:${reportPath}`;
-
-		// Define the core action function to read the report
-		const coreActionFn = async () => {
-			try {
-				// Enable silent mode to prevent console logs from interfering with JSON response
-				enableSilentMode();
-
-				const report = readComplexityReport(reportPath);
-
-				// Restore normal logging
-				disableSilentMode();
-
-				if (!report) {
-					log.warn(`No complexity report found at ${reportPath}`);
-					return {
-						success: false,
-						error: {
-							code: 'FILE_NOT_FOUND_ERROR',
-							message: `No complexity report found at ${reportPath}. Run 'analyze-complexity' first.`
-						}
-					};
-				}
-
-				return {
-					success: true,
-					data: {
-						report,
-						reportPath
-					}
-				};
-			} catch (error) {
-				// Make sure to restore normal logging even if there's an error
-				disableSilentMode();
-
-				log.error(`Error reading complexity report: ${error.message}`);
-				return {
-					success: false,
-					error: {
-						code: 'READ_ERROR',
-						message: error.message
-					}
-				};
+		if (!report || !report.complexityAnalysis || report.complexityAnalysis.length === 0) {
+			const noReportMessage = `No complexity report found at ${reportPath}. Run 'task-master analyze-complexity' first.`;
+			if (outputFormat === 'text') {
+				console.log(chalk.yellow(noReportMessage));
+			} else if (mcpLog) {
+				mcpLog.warn(noReportMessage);
 			}
-		};
-
-		// Use the caching utility
-		try {
-			const result = await coreActionFn();
-			log.info('complexityReportDirect completed');
-			return result;
-		} catch (error) {
-			// Ensure silent mode is disabled
-			disableSilentMode();
-
-			log.error(`Unexpected error during complexityReport: ${error.message}`);
-			return {
-				success: false,
-				error: {
-					code: 'UNEXPECTED_ERROR',
-					message: error.message
-				}
-			};
+			return { success: false, error: 'No report found.' };
 		}
+
+		const analysis = report.complexityAnalysis;
+
+		// Sort by complexity score, highest to lowest
+		analysis.sort((a, b) => b.complexityScore - a.complexityScore);
+
+		if (outputFormat === 'text') {
+			const table = new Table({
+				head: [
+					chalk.cyan('ID'),
+					chalk.cyan('Task Title'),
+					chalk.cyan('Complexity'),
+					chalk.cyan('Estimate (hrs)'), // NEW COLUMN HEADER
+					chalk.cyan('Subtasks'),
+					chalk.cyan('Reasoning'),
+				],
+				colWidths: [8, 35, 12, 16, 10, 40], // Adjusted for new column
+				wordWrap: true,
+			});
+
+			analysis.forEach((task) => {
+				table.push([
+					task.taskId,
+					task.taskTitle,
+					task.complexityScore,
+					task.estimateHours || 'N/A', // NEW DATA POINT
+					task.recommendedSubtasks,
+					task.reasoning,
+				]);
+			});
+
+			console.log(table.toString());
+
+			// Display summary statistics
+			const highComplexity = analysis.filter((t) => t.complexityScore >= 8).length;
+			const mediumComplexity = analysis.filter((t) => t.complexityScore >= 5 && t.complexityScore < 8).length;
+			const lowComplexity = analysis.filter((t) => t.complexityScore < 5).length;
+			const totalEstimatedHours = analysis.reduce((sum, task) => {
+				return sum + (Number(task.estimateHours) || 0);
+			}, 0);
+
+			console.log(chalk.green('\nComplexity Analysis Summary:'));
+			console.log(`- Total Tasks Analyzed: ${analysis.length}`);
+			console.log(`- High Complexity (>=8): ${highComplexity}`);
+			console.log(`- Medium Complexity (5-7): ${mediumComplexity}`);
+			console.log(`- Low Complexity (<5): ${lowComplexity}`);
+			console.log(`- Total Estimated Hours: ${totalEstimatedHours.toFixed(1)}`); // NEW SUMMARY LINE
+		}
+
+		return { success: true, data: report };
 	} catch (error) {
-		// Ensure silent mode is disabled if an outer error occurs
-		disableSilentMode();
-
-		log.error(`Error in complexityReportDirect: ${error.message}`);
-		return {
-			success: false,
-			error: {
-				code: 'UNEXPECTED_ERROR',
-				message: error.message
-			}
-		};
+		const errorMessage = `Error displaying complexity report: ${error.message}`;
+		if (outputFormat === 'text') {
+			console.error(chalk.red(errorMessage));
+		} else if (mcpLog) {
+			mcpLog.error(errorMessage);
+		}
+		return { success: false, error: error.message };
 	}
 }
+
+export default complexityReport;
