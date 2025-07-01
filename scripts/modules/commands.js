@@ -140,6 +140,8 @@ import {
 	generateProfileRemovalSummary,
 	categorizeRemovalResults
 } from '../../src/utils/profiles.js';
+import generateClarifyingQuestions from './task-manager/generate-clarifying-questions.js';
+import exportComplexityReport from './task-manager/export-complexity-report.js';
 
 /**
  * Runs the interactive setup process for model configuration.
@@ -1670,6 +1672,9 @@ function registerCommands(programInstance) {
 			'Use Perplexity AI for research-backed complexity analysis'
 		)
 		.option(
+			'--clarify', 'Generate a document with clarifying questions before analysis and incorporate them into the prompt.'
+		)
+		.option(
 			'-i, --id <ids>',
 			'Comma-separated list of specific task IDs to analyze (e.g., "1,3,5")'
 		)
@@ -2577,6 +2582,41 @@ ${result.result}
 			await displayComplexityReport(reportPath);
 		});
 
+	// clarify command
+	programInstance
+		.command('clarify')
+		.description('Generates a document with clarifying questions for a task or PRD.')
+		.option('-i, --id <id>', 'ID of the task to clarify.')
+		.option('-f, --file <path>', 'Path to the PRD file to clarify.')
+		.option('-o, --output <path>', 'Output file path for the clarifying questions document.')
+		.action(async (options) => {
+			try {
+				await generateClarifyingQuestions(options, {});
+			} catch (error) {
+				log('error', `Error in clarify command: ${error.message}`);
+				process.exit(1);
+			}
+		});
+
+	// export-complexity-report command
+	programInstance
+        .command('export-complexity-report')
+        .description('Export the complexity analysis report to a CSV file')
+        .option(
+            '-r, --report <file>',
+            'Path to the source JSON report file (e.g., .taskmaster/reports/task-complexity-report.json)',
+            COMPLEXITY_REPORT_FILE
+        )
+        .option(
+            '-o, --output <file>',
+            'Path for the destination CSV file (e.g., complexity-report.csv)'
+        )
+        .option('--tag <tag>', 'Specify tag context for the report file')
+        .action(async (options) => {
+            log('info', 'Starting complexity report export...');
+            await exportComplexityReport(options);
+        });
+
 	// add-subtask command
 	programInstance
 		.command('add-subtask')
@@ -3048,7 +3088,7 @@ ${result.result}
 					'\n\n' +
 					chalk.cyan('Usage:') +
 					'\n' +
-					`  task-master research "<query>" [options]\n\n` +
+					`  task-master research "query" [options]\n\n` +
 					chalk.cyan('Required:') +
 					'\n' +
 					'  <query>             Research question or prompt (required)\n\n' +
@@ -3474,7 +3514,7 @@ Examples:
 					// runInteractiveSetup logs its own completion/error messages
 				} catch (setupError) {
 					console.error(
-						chalk.red('\\nInteractive setup failed unexpectedly:'),
+						chalk.red('\nInteractive setup failed unexpectedly:'),
 						setupError.message
 					);
 				}

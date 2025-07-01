@@ -102,7 +102,37 @@ function findProjectRoot(
 	return hasMarkerInRoot ? rootPath : null;
 }
 
-// --- Dynamic Configuration Function --- (REMOVED)
+/**
+ * Finds the path to the tasks.json file, checking new and legacy locations.
+ * @param {string} [projectRoot] - The project root directory. If not provided, it will be found.
+ * @returns {string|null} The path to tasks.json, or the intended new path if none exist. Returns null if project root isn't found.
+ */
+function findTasksJsonPath(projectRoot = null) {
+    const root = projectRoot || findProjectRoot();
+    if (!root) {
+        return null;
+    }
+
+    // New path structure
+    const newPath = path.join(root, '.taskmaster', 'tasks', 'tasks.json');
+    if (fs.existsSync(newPath)) {
+        return newPath;
+    }
+
+    // Legacy paths
+    const legacyPath1 = path.join(root, 'tasks.json');
+    if (fs.existsSync(legacyPath1)) {
+        return legacyPath1;
+    }
+
+    const legacyPath2 = path.join(root, 'scripts', 'tasks.json');
+    if (fs.existsSync(legacyPath2)) {
+        return legacyPath2;
+    }
+
+    // If no file is found, return the path where it should be created.
+    return newPath;
+}
 
 // --- Logging and Utility Functions ---
 
@@ -1338,6 +1368,7 @@ export {
 	addComplexityToTask,
 	resolveEnvVariable,
 	findProjectRoot,
+	findTasksJsonPath,
 	aggregateTelemetry,
 	getCurrentTag,
 	resolveTag,
