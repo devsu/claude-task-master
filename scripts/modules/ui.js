@@ -899,8 +899,8 @@ function displayHelp() {
  * @returns {string} Colored complexity score
  */
 function getComplexityWithColor(score) {
-	if (score <= 3) return chalk.green(`● ${score}`);
-	if (score <= 6) return chalk.yellow(`● ${score}`);
+	if (score <= 4) return chalk.green(`● ${score}`);
+	if (score <= 7) return chalk.yellow(`● ${score}`);
 	return chalk.red(`● ${score}`);
 }
 
@@ -1753,7 +1753,7 @@ async function displayComplexityReport(reportPath) {
 			'mid-mid': '',
 			'right-mid': ''
 		},
-		colWidths: [20, 50]
+		colWidths: [25, 50]
 	});
 
 	metaTable.push(
@@ -1764,11 +1764,19 @@ async function displayComplexityReport(reportPath) {
 		[chalk.cyan.bold('Tasks Analyzed:'), report.meta.tasksAnalyzed],
 		[chalk.cyan.bold('Threshold Score:'), report.meta.thresholdScore],
 		[chalk.cyan.bold('Project:'), report.meta.projectName],
+		[chalk.cyan.bold('Total Estimated Hours:'), report.meta.totalEstimatedHours],
 		[
 			chalk.cyan.bold('Research-backed:'),
 			report.meta.usedResearch ? 'Yes' : 'No'
 		]
 	);
+
+	if (report.meta.clarificationProvided) {
+        metaTable.push([
+            chalk.cyan.bold('Clarification Used:'),
+            chalk.green('Yes')
+        ]);
+    }
 
 	console.log(metaTable.toString());
 
@@ -1825,10 +1833,11 @@ async function displayComplexityReport(reportPath) {
 	const idWidth = 12;
 	const titleWidth = Math.floor(terminalWidth * 0.25); // 25% of width
 	const scoreWidth = 8;
+	const estimateWidth = 10; // Fixed width for recommended subtasks
 	const subtasksWidth = 8;
 	// Command column gets the remaining space (minus some buffer for borders)
 	const commandWidth =
-		terminalWidth - idWidth - titleWidth - scoreWidth - subtasksWidth - 10;
+		terminalWidth - idWidth - titleWidth - scoreWidth - estimateWidth - subtasksWidth - 10;
 
 	// Create table with new column widths and word wrapping
 	const complexTable = new Table({
@@ -1836,10 +1845,11 @@ async function displayComplexityReport(reportPath) {
 			chalk.yellow.bold('ID'),
 			chalk.yellow.bold('Title'),
 			chalk.yellow.bold('Score'),
+			chalk.yellow.bold('Estimate (hrs)'),
 			chalk.yellow.bold('Subtasks'),
 			chalk.yellow.bold('Expansion Command')
 		],
-		colWidths: [idWidth, titleWidth, scoreWidth, subtasksWidth, commandWidth],
+		colWidths: [idWidth, titleWidth, scoreWidth, estimateWidth, subtasksWidth, commandWidth],
 		style: { head: [], border: [] },
 		wordWrap: true,
 		wrapOnWordBoundary: true
@@ -1853,6 +1863,7 @@ async function displayComplexityReport(reportPath) {
 			task.taskId,
 			truncate(task.taskTitle, titleWidth - 3), // Still truncate title for readability
 			getComplexityWithColor(task.complexityScore),
+			task.estimatedHours,
 			task.recommendedSubtasks,
 			chalk.cyan(expansionCommand) // Don't truncate - allow wrapping
 		]);
@@ -1876,9 +1887,10 @@ async function displayComplexityReport(reportPath) {
 				chalk.green.bold('ID'),
 				chalk.green.bold('Title'),
 				chalk.green.bold('Score'),
+				chalk.green.bold('Estimate (hrs)'),
 				chalk.green.bold('Reasoning')
 			],
-			colWidths: [5, 40, 8, 50],
+			colWidths: [5, 40, 8, 10, 50],
 			style: { head: [], border: [] }
 		});
 
@@ -1887,7 +1899,8 @@ async function displayComplexityReport(reportPath) {
 				task.taskId,
 				truncate(task.taskTitle, 37),
 				getComplexityWithColor(task.complexityScore),
-				truncate(task.reasoning, 47)
+				task.estimatedHours,
+				truncate(task.reasoning, 37)
 			]);
 		});
 

@@ -24,6 +24,21 @@ lerna-debug.log*
 coverage/
 *.lcov
 
+# Configuration files
+.taskmaster/config.json
+
+# Reports
+reports/
+
+# Research files
+docs/research/
+
+# Docs
+docs/
+
+# Tasks
+tasks/
+
 # Jest cache
 .jest/
 
@@ -87,3 +102,92 @@ dev-debug.log
 *.njsproj
 *.sln
 *.sw?
+
+# Compiled source #
+dist/
+build/
+
+# Dependency directories
+jspm_packages/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Temporary files
+*.tmp
+*.temp
+
+# Temporary directories
+temp/
+
+# Temporary files created by editors
+*.bak
+*.swp
+*.swo
+
+# Temporary files created by OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Temporary files created by IDEs
+*.iml
+*.ipr
+*.iws
+
+# Temporary files created by build tools
+*.log
+*.pid
+*.seed
+
+# Temporary files created by package managers
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Temporary files created by task runners
+gulpfile.js
+gruntfile.js
+webpack.config.js
+
+# Temporary files created by testing frameworks
+karma.conf.js
+jest.config.js
+mocha.opts
+
+# Temporary files created by documentation generators
+*.md
+*.html
+*.pdf
+
+# Temporary files created by code analysis tools
+*.coverage
+*.lcov
+*.sonar
+
+# Temporary files created by code formatters
+.prettierignore
+.stylelintignore
+
+# Temporary files created by code linters
+.eslintrc.js
+.stylelintrc.js 
+.prettierrc.js
+
+# Temporary files created by code bundlers
+rollup.config.js
+webpack.config.babel.js
+
+# Temporary files created by code minifiers
+terser.config.js
+uglify.config.js
+
+# Temporary files created by code transpilers
+babel.config.js
+typescript.config.js
