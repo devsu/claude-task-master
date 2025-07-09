@@ -53,6 +53,7 @@ const prdResponseSchema = z.object({
  * @param {boolean} [options.force=false] - Whether to overwrite existing tasks.json.
  * @param {boolean} [options.append=false] - Append to existing tasks file.
  * @param {boolean} [options.research=false] - Use research model for enhanced PRD analysis.
+ * @param {string} [options.projectName] - The name of the project.
  * @param {Object} [options.reportProgress] - Function to report progress (optional, likely unused).
  * @param {Object} [options.mcpLog] - MCP logger object (optional).
  * @param {Object} [options.session] - Session object from MCP server (optional).
@@ -69,7 +70,8 @@ async function parsePRD(prdPath, tasksPath, numTasks, options = {}) {
 		force = false,
 		append = false,
 		research = false,
-		tag
+		tag,
+		projectName
 	} = options;
 	const isMCP = !!mcpLog;
 	const outputFormat = isMCP ? 'json' : 'text';
@@ -172,6 +174,10 @@ async function parsePRD(prdPath, tasksPath, numTasks, options = {}) {
 			throw new Error(`Input file ${prdPath} is empty or could not be read.`);
 		}
 
+		// Determine the project name. Use the flag if provided, otherwise derive from the filename.
+        const finalProjectName = projectName || path.basename(prdPath, path.extname(prdPath));
+        report(`Using project name: "${finalProjectName}"`, 'info');
+
 		// Research-specific enhancements to the system prompt
 		const researchPromptAddition = research
 			? `\nBefore breaking down the PRD into tasks, you will:
@@ -236,7 +242,7 @@ Guidelines:
         ...
     ],
     "metadata": {
-        "projectName": "PRD Implementation",
+        "projectName": "${finalProjectName}",
         "totalTasks": ${numTasks},
         "sourceFile": "${prdPath}",
         "generatedAt": "YYYY-MM-DD"
@@ -354,7 +360,11 @@ Guidelines:
 				created:
 					outputData[targetTag]?.metadata?.created || new Date().toISOString(),
 				updated: new Date().toISOString(),
-				description: `Tasks for ${targetTag} context`
+				description: `Tasks for ${targetTag} context`,
+				projectName: finalProjectName,
+				totalTasks: finalTasks.length,
+				sourceFile: prdPath,
+				generatedAt: new Date().toISOString(),
 			}
 		};
 

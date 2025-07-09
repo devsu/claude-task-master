@@ -806,6 +806,7 @@ function registerCommands(programInstance) {
 		)
 		.option('-o, --output <file>', 'Output file path', TASKMASTER_TASKS_FILE)
 		.option('-n, --num-tasks <number>', 'Number of tasks to generate', '10')
+		.option('--project <name>', 'Set the project name for the task metadata')
 		.option('-f, --force', 'Skip confirmation when overwriting existing tasks')
 		.option(
 			'--append',
@@ -817,22 +818,46 @@ function registerCommands(programInstance) {
 		)
 		.option('--tag <tag>', 'Specify tag context for task operations')
 		.action(async (file, options) => {
-			// Use input option if file argument not provided
-			const inputFile = file || options.input;
-			const defaultPrdPath = PRD_FILE;
-			const numTasks = parseInt(options.numTasks, 10);
-			const outputPath = options.output;
-			const force = options.force || false;
-			const append = options.append || false;
-			const research = options.research || false;
-			let useForce = force;
-			const useAppend = append;
-
 			const projectRoot = findProjectRoot();
 			if (!projectRoot) {
 				console.error(chalk.red('Error: Could not find project root.'));
 				process.exit(1);
 			}
+
+			// Use input option if file argument not provided
+			let inputFile = file || options.input;
+			const defaultPrdPath = PRD_FILE;
+			const numTasks = parseInt(options.numTasks, 10);
+			const force = options.force || false;
+			const append = options.append || false;
+			const research = options.research || false;
+			const projectName = options.project;
+			let useForce = force;
+			const useAppend = append;
+
+			 // **NEW LOGIC**: If inputFile is just a filename, assume it's in the default PRD directory.
+            if (inputFile && !/[\\/]/.test(inputFile)) {
+                const defaultPrdsDir = path.join(projectRoot, '.taskmaster', 'docs', 'prds');
+                const assumedPath = path.join(defaultPrdsDir, inputFile);
+                console.log(chalk.blue(`Filename provided without a path. Assuming location: ${path.relative(projectRoot, assumedPath)}`));
+                inputFile = assumedPath;
+            }
+
+			// **UPDATED LOGIC**: Determine the output path correctly.
+            let outputPath;
+			console.log(`options.output: ${options.output}`);
+            if (options.output !== TASKMASTER_TASKS_FILE) {
+                outputPath = options.output;
+            } else if (projectName) {
+                // If a project name is given and no output path, create a dynamic filename in the default tasks directory.
+                const sanitizedProjectName = projectName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                const defaultTasksDir = path.dirname(TASKMASTER_TASKS_FILE); // e.g., .taskmaster/tasks
+                outputPath = path.join(defaultTasksDir, `${sanitizedProjectName}-tasks.json`);
+                console.log(chalk.blue(`Output file will be named based on project: ${outputPath}`));
+            } else {
+                // Default case if no output and no project name is given.
+                outputPath = TASKMASTER_TASKS_FILE;
+            }
 
 			// Resolve tag using standard pattern
 			const tag = options.tag || getCurrentTag(projectRoot) || 'master';
@@ -880,6 +905,9 @@ function registerCommands(programInstance) {
 
 			let spinner;
 
+			console.log(`inputFile: ${inputFile}`);
+			console.log(`outputPath: ${outputPath}`);
+
 			try {
 				if (!inputFile) {
 					if (fs.existsSync(defaultPrdPath)) {
@@ -895,7 +923,8 @@ function registerCommands(programInstance) {
 							force: useForce, // Changed key from useForce to force
 							research: research,
 							projectRoot: projectRoot,
-							tag: tag
+							tag: tag,
+							projectName: projectName
 						});
 						spinner.succeed('Tasks generated successfully!');
 						return;
@@ -943,7 +972,8 @@ function registerCommands(programInstance) {
 					force: useForce,
 					research: research,
 					projectRoot: projectRoot,
-					tag: tag
+					tag: tag,
+					projectName: projectName
 				});
 				spinner.succeed('Tasks generated successfully!');
 			} catch (error) {
@@ -2588,6 +2618,7 @@ ${result.result}
 		.description('Generates a document with clarifying questions for a task or PRD.')
 		.option('-i, --id <id>', 'ID of the task to clarify.')
 		.option('-f, --file <path>', 'Path to the PRD file to clarify.')
+		.option('--project <name>', 'Set a project name for the output filename and title.')
 		.option('-o, --output <path>', 'Output file path for the clarifying questions document.')
 		.action(async (options) => {
 			try {

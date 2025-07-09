@@ -7,7 +7,8 @@ import { getProjectName, getDebugFlag } from '../config-manager.js';
 
 async function generateClarifyingQuestions(options, context = {}) {
     const { session, mcpLog } = context;
-    const { id, file, output, tasksData } = options;
+    // Destructure 'project' from options and rename it to 'projectName'
+    const { id, file, output, tasksData, project: projectName } = options;
 
     const outputFormat = mcpLog ? 'json' : 'text';
     const reportLog = (message, level = 'info') => {
@@ -49,9 +50,10 @@ async function generateClarifyingQuestions(options, context = {}) {
     
     const tasksPath = findTasksJsonPath(projectRoot);
 
-    const taskMasterDocsDir = path.join(projectRoot, '.taskmaster', 'docs');
-    if (!fs.existsSync(taskMasterDocsDir)) {
-        fs.mkdirSync(taskMasterDocsDir, { recursive: true });
+    // **UPDATED**: Set the default directory for questions files.
+    const defaultQuestionsDir = path.join(projectRoot, '.taskmaster', 'docs', 'questions');
+    if (!fs.existsSync(defaultQuestionsDir)) {
+        fs.mkdirSync(defaultQuestionsDir, { recursive: true });
     }
 
     try {
@@ -85,10 +87,12 @@ async function generateClarifyingQuestions(options, context = {}) {
                 return { success: false, error: errorMessage };
             }
             contentToClarify = fs.readFileSync(prdFilePath, 'utf8');
+            
             const prdFileName = path.basename(file, path.extname(file));
             documentTitle = `Clarifying Questions for PRD: ${prdFileName}`;
             defaultFileName = `clarifying_questions_prd_${prdFileName}.md`;
             reportLog(`Analyzing PRD file ${file} for clarifying questions...`, 'info');
+
         } else if (tasksData && Array.isArray(tasksData.tasks)) {
             const tasksToProcess = tasksData.tasks;
             if (tasksToProcess.length === 0) {
@@ -97,8 +101,16 @@ async function generateClarifyingQuestions(options, context = {}) {
             }
             contentToClarify = tasksToProcess.map(t => `Task ID: ${t.id}\nTitle: ${t.title}\nDescription: ${t.description}\nDetails: ${t.details || 'N/A'}`).join('\n\n---\n\n');
             documentTitle = `Clarifying Questions for ${tasksToProcess.length} Task(s)`;
-            defaultFileName = `clarifying_questions_tasks_${new Date().toISOString().replace(/[:.]/g, '-')}.md`;
+            defaultFileName = `clarifying_questions_for_tasks.md`; 
             reportLog(`Analyzing ${tasksToProcess.length} task(s) for clarifying questions...`, 'info');
+        }
+
+        // If a project name is provided, it overrides any default naming.
+        if (projectName) {
+            documentTitle = `Clarifying Questions for Project: ${projectName}`;
+            const sanitizedProjectName = projectName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+            defaultFileName = `Clarifying Questions for Project-${sanitizedProjectName}.md`;
+            log('info', `Overriding output name based on project: "${projectName}"`);
         }
 
         const systemPrompt = `You are an expert software architect and technical lead. Your task is to review the provided content (which could be a software development task or a Product Requirements Document - PRD) and generate a list of clarifying questions for a developer.
@@ -131,7 +143,8 @@ Provide the questions in a clear, numbered list format. Do not include any intro
 
         const questions = aiResponse.mainResult;
 
-        const outputFilePath = output ? path.resolve(projectRoot, output) : path.join(taskMasterDocsDir, defaultFileName);
+        // **UPDATED**: Use the new default directory if no output flag is given.
+        const outputFilePath = output ? path.resolve(projectRoot, output) : path.join(defaultQuestionsDir, defaultFileName);
 
         const documentContent = `# ${documentTitle}\n\n` +
                                 `Generated on: ${new Date().toISOString()}\n\n` +
