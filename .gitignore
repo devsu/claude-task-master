@@ -159,7 +159,6 @@ jest.config.js
 mocha.opts
 
 # Temporary files created by documentation generators
-*.md
 *.html
 *.pdf
 
