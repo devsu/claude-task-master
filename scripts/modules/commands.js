@@ -142,6 +142,7 @@ import {
 } from '../../src/utils/profiles.js';
 import generateClarifyingQuestions from './task-manager/generate-clarifying-questions.js';
 import exportComplexityReport from './task-manager/export-complexity-report.js';
+import runFullTaskAnalysis from './task-manager/full-task-analysis.js';
 
 /**
  * Runs the interactive setup process for model configuration.
@@ -1680,8 +1681,7 @@ function registerCommands(programInstance) {
 		)
 		.option(
 			'-o, --output <file>',
-			'Output file path for the report',
-			COMPLEXITY_REPORT_FILE
+			'Output file path for the report'
 		)
 		.option(
 			'-m, --model <model>',
@@ -2646,6 +2646,22 @@ ${result.result}
         .action(async (options) => {
             log('info', 'Starting complexity report export...');
             await exportComplexityReport(options);
+        });
+
+	// full-task-analysis command
+    programInstance
+        .command('full-task-analysis')
+        .description('Run the full analysis pipeline: parse PRD, analyze complexity, and export report.')
+        .argument('<file>', 'Path to the source PRD file.')
+        .argument('<project>', 'The name for the project.')
+        .option('--clarify', 'Enable the interactive clarification step during complexity analysis.')
+        .action(async (file, project, options) => {
+            log('info', 'Starting full task analysis pipeline...');
+            await runFullTaskAnalysis({
+                file: file,
+                project: project,
+                clarify: options.clarify || false
+            });
         });
 
 	// add-subtask command

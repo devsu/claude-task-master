@@ -114,11 +114,12 @@ async function analyzeTaskComplexity(options, context = {}) {
 
         // **UPDATED**: Determine the report path with new logic
         let reportPath;
-        if (output !== COMPLEXITY_REPORT_FILE) {
+        if (output) {
             reportPath = path.resolve(projectRoot, output);
         } else {
-            // Otherwise, construct the filename.
-            let reportFileName = 'task-complexity-report.json'; // Default name
+             // Otherwise, construct the default path using the project name.
+            const projectName = (tasksData.metadata && tasksData.metadata.projectName) || getProjectName();
+            let reportFileName = 'task-complexity-report.json'; // Fallback default name
             if (projectName) {
                 const sanitizedProjectName = projectName.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
                 reportFileName = `task-complexity-report-${sanitizedProjectName}.json`;
@@ -146,7 +147,7 @@ For each task provided, create an object in the array with the following keys, e
 - "taskId": (number) The ID of the task.
 - "taskTitle": (string) The title of the task.
 - "complexityScore": (number) A score from 1 (trivial) to 10 (highly complex).
-- "estimatedHours": (number) A rough estimate of the time in hours to complete the task, assuming a single mid-to-senior level developer will be assigned to each individual task. The estimate should be done assuming no AI-assisted development.
+- "estimatedHours": (number) A rough estimate of the time in hours to complete the task, assuming a single mid level developer will be assigned to each individual task. The estimate should be done assuming no AI-assisted development.
 - "reasoning": (string) A brief explanation for the score.
 - "recommendedSubtasks": (number) A suggested number of subtasks to break it down into.
 - "expansionPrompt": (string) A concise prompt for a separate AI to use to expand this task into subtasks.
